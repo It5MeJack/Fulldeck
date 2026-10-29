@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E9EDF3">
+<title>Full Deck</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<style>
+:root{--bg:#E9EDF3;--ink:#12172B;--mute:#5E6783;--accent:#2D40F0;--onaccent:#fff;--line:#C9D1E0;--card:#F6F8FB;--played:#12172B;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1322;--ink:#E9EDF3;--mute:#9099B5;--accent:#8794FF;--onaccent:#0F1322;--line:#2A3150;--card:#171C33;--played:#E9EDF3;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F1322;--ink:#E9EDF3;--mute:#9099B5;--accent:#8794FF;--onaccent:#0F1322;--line:#2A3150;--card:#171C33;--played:#E9EDF3;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-tap-highlight-color:transparent}
+main{max-width:480px;margin:0 auto;padding:18px 20px 230px}
+header{display:flex;justify-content:space-between;align-items:center}
+h1{font-size:18px;font-weight:800;margin:0;letter-spacing:-.01em}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.add{position:relative;overflow:hidden;cursor:pointer;background:var(--accent);color:var(--onaccent);font-weight:600;padding:10px 16px;border-radius:999px}
+.add input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+#now{margin:44px 0 22px}
+#count{margin:0 0 8px;color:var(--mute);font-size:15px}
+#title{margin:0;font-size:clamp(30px,9vw,42px);line-height:1.05;font-weight:800;letter-spacing:-.025em;overflow-wrap:anywhere}
+#ticks{display:flex;gap:2px;height:30px;align-items:flex-end}
+#ticks i{flex:1 1 0;min-width:1px;height:38%;background:var(--line);border-radius:1px}
+#ticks i.p{background:var(--played);height:62%}
+#ticks i.c{background:var(--accent);height:100%}
+h3{font-size:15px;font-weight:600;color:var(--mute);margin:34px 0 8px}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;align-items:center;border-bottom:1px solid var(--line)}
+li .t{flex:1;text-align:left;padding:14px 0;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+li.done .t{color:var(--mute);cursor:default}
+li .x{width:44px;height:44px;color:var(--mute);font-size:22px}
+#empty{margin-top:60px;color:var(--mute);font-size:18px;line-height:1.4}
+#empty b{color:var(--ink)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:14px 20px calc(14px + env(safe-area-inset-bottom,0px))}
+.bar>div{max-width:480px;margin:0 auto}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+.times{display:flex;justify-content:space-between;color:var(--mute);font-size:13px;font-variant-numeric:tabular-nums;margin-top:2px}
+.ctl{display:flex;justify-content:center;align-items:center;gap:30px;margin-top:6px}
+.ctl button{width:56px;height:56px;border-radius:50%;display:grid;place-items:center}
+.ctl svg{width:28px;height:28px;fill:currentColor}
+.ctl .go{width:72px;height:72px;background:var(--accent);color:var(--onaccent)}
+.ctl .go svg{width:32px;height:32px}
+#toast{position:fixed;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .25s;white-space:nowrap}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+<main>
+  <header><h1>Full Deck</h1><label class="add" id="addBtn">Add songs<input id="file" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus" multiple></label></header>
+  <section id="now"><p id="count"></p><h2 id="title"></h2></section>
+  <div id="ticks" aria-hidden="true"></div>
+  <div id="empty" hidden><b>Add songs from your phone.</b> Every one plays once before any song repeats.</div>
+  <div id="pool"></div>
+</main>
+<footer class="bar"><div>
+  <input type="range" id="seek" min="0" max="1000" value="0" aria-label="Seek">
+  <div class="times"><span id="t1">0:00</span><span id="t2">0:00</span></div>
+  <div class="ctl">
+    <button id="prev" aria-label="Previous"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg></button>
+    <button id="play" class="go" aria-label="Play"></button>
+    <button id="next" aria-label="Next"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+  </div>
+</div></footer>
+<div id="toast" role="status"></div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var audio=new Audio();audio.preload='auto';
+var songs=new Map(),deck=[],pos=-1,url=null,seeking=false;
+var PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',PAUSE='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
+/* storage: songs live in IndexedDB, deck order in localStorage */
+var dbp=new Promise(function(res,rej){var r=indexedDB.open('full-deck',1);r.onupgradeneeded=function(){r.result.createObjectStore('songs',{keyPath:'id'})};r.onsuccess=function(){res(r.result)};r.onerror=function(){rej(r.error)}}).catch(function(){return null});
+function tx(mode,fn){return dbp.then(function(db){if(!db)return;return new Promise(function(res){var t=db.transaction('songs',mode),q=fn(t.objectStore('songs'));t.oncomplete=function(){res(q&&q.result)};t.onerror=function(){res()}})}).catch(function(){})}
+function save(){try{localStorage.setItem('fd-state',JSON.stringify({deck:deck,pos:pos}))}catch(e){}}
+
+/* true shuffle: one Fisher-Yates pass over every song = one deck */
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=a[i];a[i]=a[j];a[j]=t}return a}
+function newDeck(avoid){var d=shuffle(Array.from(songs.keys()));if(avoid&&d.length>1&&d[0]===avoid){var j=1+Math.floor(Math.random()*(d.length-1));var t=d[0];d[0]=d[j];d[j]=t}return d}
+
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fmt(s){if(!isFinite(s))return'0:00';s=Math.floor(s);return Math.floor(s/60)+':'+('0'+s%60).slice(-2)}
+var toastT;function toast(m){var t=$('toast');t.textContent=m;t.className='on';clearTimeout(toastT);toastT=setTimeout(function(){t.className=''},2600)}
+
+function load(id,autoplay){
+  var s=songs.get(id);if(!s)return;
+  if(url)URL.revokeObjectURL(url);
+  url=URL.createObjectURL(s.blob);audio.src=url;
+  if(autoplay)audio.play().catch(function(){});
+  if('mediaSession' in navigator){try{navigator.mediaSession.metadata=new MediaMetadata({title:s.name,artist:'Full Deck'})}catch(e){}}
+}
+function next(autoplay){
+  if(!songs.size)return;
+  if(!deck.length){deck=newDeck(null);pos=-1}
+  if(pos+1>=deck.length){var last=deck[pos];deck=newDeck(last);pos=0;toast('Every song played. Reshuffled.')}
+  else pos++;
+  load(deck[pos],autoplay!==false);save();render();
+}
+function prev(){
+  if(audio.currentTime>3||pos<=0){audio.currentTime=0;return}
+  pos--;load(deck[pos],true);save();render();
+}
+function jump(id){
+  var i=deck.indexOf(id);if(i<=pos)return;
+  deck.splice(i,1);deck.splice(pos+1,0,id);next(true);
+}
+function toggle(){
+  if(pos<0){next(true);return}
+  if(audio.paused)audio.play().catch(function(){});else audio.pause();
+}
+function remove(id){
+  var i=deck.indexOf(id),wasCur=i===pos&&pos>=0,playing=!audio.paused;
+  songs.delete(id);tx('readwrite',function(s){return s.delete(id)});
+  if(i>-1){deck.splice(i,1);if(i<pos)pos--;}
+  if(wasCur){audio.pause();pos--;if(songs.size)next(playing);else{audio.removeAttribute('src');pos=-1;deck=[];render();save()}}
+  else{save();render()}
+}
+function addFiles(files){
+  var seen=new Set();songs.forEach(function(s){seen.add(s.name+'|'+s.blob.size)});
+  var added=0;
+  Array.prototype.forEach.call(files,function(f){
+    if(!/^audio\//.test(f.type)&&!/\.(mp3|m4a|aac|wav|flac|ogg|opus)$/i.test(f.name))return;
+    var name=f.name.replace(/\.[^.]+$/,'');if(seen.has(name+'|'+f.size))return;
+    var id=Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+    var rec={id:id,name:name,blob:f};songs.set(id,rec);seen.add(name+'|'+f.size);added++;
+    tx('readwrite',function(s){return s.put(rec)});
+    if(deck.length){deck.splice(pos+1+Math.floor(Math.random()*(deck.length-pos)),0,id)}
+  });
+  if(songs.size&&!deck.length){deck=newDeck(null);pos=-1}
+  save();render();if(added)toast(added+(added===1?' song added':' songs added'));
+}
+
+function render(){
+  var n=songs.size,cur=pos>=0?songs.get(deck[pos]):null;
+  $('empty').hidden=n>0;
+  $('title').textContent=cur?cur.name:(n?'Ready when you are':'No songs yet');
+  $('count').textContent=cur?(pos+1)+' of '+deck.length+' played this round':(n?n+(n===1?' song':' songs')+' in the deck':'');
+  var t='';for(var i=0;i<deck.length;i++)t+='<i class="'+(i===pos?'c':i<pos?'p':'')+'"></i>';
+  $('ticks').innerHTML=t;
+  var left=deck.slice(pos+1).filter(function(id){return songs.has(id)}).sort(function(a,b){return songs.get(a).name.localeCompare(songs.get(b).name)});
+  var done=deck.slice(0,pos+1).reverse().filter(function(id){return songs.has(id)});
+  function row(id,d){var s=songs.get(id);return '<li class="'+(d?'done':'')+'"><button class="t" data-id="'+id+'"'+(d?' disabled':'')+'>'+esc(s.name)+'</button><button class="x" data-rm="'+id+'" aria-label="Remove '+esc(s.name)+'">×</button></li>'}
+  var h='';
+  if(left.length)h+='<h3>Still in the deck ('+left.length+')</h3><ul>'+left.map(function(i){return row(i,0)}).join('')+'</ul>';
+  if(done.length)h+='<h3>Already played</h3><ul>'+done.map(function(i){return row(i,1)}).join('')+'</ul>';
+  $('pool').innerHTML=h;
+  $('play').innerHTML=audio.paused?PLAY:PAUSE;
+  $('play').setAttribute('aria-label',audio.paused?'Play':'Pause');
+}
+
+$('pool').addEventListener('click',function(e){
+  var rm=e.target.closest('[data-rm]');if(rm){remove(rm.dataset.rm);return}
+  var b=e.target.closest('[data-id]');if(b&&!b.disabled)jump(b.dataset.id);
+});
+$('file').onchange=function(e){addFiles(e.target.files);e.target.value=''};
+$('play').onclick=toggle;$('next').onclick=function(){next(true)};$('prev').onclick=prev;
+audio.addEventListener('ended',function(){next(true)});
+audio.addEventListener('error',function(){if(audio.src){toast('Skipped a song that won’t play');next(true)}});
+audio.addEventListener('play',function(){$('play').innerHTML=PAUSE;$('play').setAttribute('aria-label','Pause')});
+audio.addEventListener('pause',function(){$('play').innerHTML=PLAY;$('play').setAttribute('aria-label','Play')});
+audio.addEventListener('loadedmetadata',function(){$('t2').textContent=fmt(audio.duration)});
+audio.addEventListener('timeupdate',function(){
+  if(seeking||!isFinite(audio.duration))return;
+  $('seek').value=audio.currentTime/audio.duration*1000;$('t1').textContent=fmt(audio.currentTime);
+});
+$('seek').addEventListener('input',function(){seeking=true;if(isFinite(audio.duration)){$('t1').textContent=fmt(this.value/1000*audio.duration)}});
+$('seek').addEventListener('change',function(){if(isFinite(audio.duration))audio.currentTime=this.value/1000*audio.duration;seeking=false});
+if('mediaSession' in navigator){
+  try{navigator.mediaSession.setActionHandler('play',toggle);navigator.mediaSession.setActionHandler('pause',toggle);
+  navigator.mediaSession.setActionHandler('nexttrack',function(){next(true)});navigator.mediaSession.setActionHandler('previoustrack',prev)}catch(e){}
+}
+
+/* restore */
+tx('readonly',function(s){return s.getAll()}).then(function(all){
+  (all||[]).forEach(function(r){songs.set(r.id,r)});
+  var st={};try{st=JSON.parse(localStorage.getItem('fd-state')||'{}')}catch(e){}
+  var curId=st.deck&&st.pos>=0?st.deck[st.pos]:null;
+  deck=(st.deck||[]).filter(function(id){return songs.has(id)});
+  pos=curId?deck.indexOf(curId):-1;
+  if(pos<0&&curId&&deck.length){pos=-1;deck=newDeck(null)}
+  songs.forEach(function(s,id){if(deck.indexOf(id)<0)deck.splice(pos+1+Math.floor(Math.random()*(deck.length-pos)),0,id)});
+  if(!deck.length&&songs.size)deck=newDeck(null);
+  if(pos>=0)load(deck[pos],false);
+  save();render();
+});
+render();
+})();
+</script>
+</body>
+</html>
